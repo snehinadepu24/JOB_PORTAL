@@ -1,5 +1,5 @@
 import express from "express";
-import dbConnection from "./database/dbConnection.js";
+import "./database/supabaseClient.js";
 import jobRouter from "./routes/jobRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import applicationRouter from "./routes/applicationRoutes.js";
@@ -15,7 +15,7 @@ const app = express();
 config({ path: "./config/config.env" });
 
 // Verify environment variables are loaded
-if (!process.env.PORT || !process.env.FRONTEND_URL || !process.env.DB_URL) {
+if (!process.env.PORT || !process.env.FRONTEND_URL || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Critical environment variables are missing!");
   process.exit(1);
 }
@@ -47,9 +47,6 @@ app.use(
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/job", jobRouter);
 app.use("/api/v1/application", applicationRouter);
-
-// Database connection
-dbConnection();
 
 // Error middleware
 app.use(errorMiddleware);

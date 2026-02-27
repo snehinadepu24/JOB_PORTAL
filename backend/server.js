@@ -41,6 +41,7 @@ try {
 console.log("Environment Configuration:");
 console.log("PORT:", process.env.PORT);
 console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
 console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
 console.log("JWT_EXPIRE:", process.env.JWT_EXPIRE);
 
