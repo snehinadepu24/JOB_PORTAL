@@ -1,5 +1,7 @@
 import { supabase } from '../database/supabaseClient.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { automationLogger } from '../utils/automationLogger.js';
+import { metricsCollector } from '../utils/metricsCollector.js';
 
 /**
  * ShortlistingManager
@@ -130,11 +132,22 @@ class ShortlistingManager {
       }
 
       // Log automation action
-      await this.logAutomation(jobId, 'auto_shortlist', {
-        shortlisted_count: topN.length,
-        buffer_count: bufferN.length,
-        total_applications: applications.length
+      await automationLogger.log({
+        jobId,
+        actionType: 'auto_shortlist',
+        triggerSource: 'auto',
+        actorId: null,
+        details: {
+          shortlisted_count: topN.length,
+          buffer_count: bufferN.length,
+          total_applications: applications.length,
+          number_of_openings: numberOfOpenings,
+          buffer_size: bufferSize
+        }
       });
+
+      // Record automation action metrics
+      metricsCollector.recordAutomationAction('auto_shortlist', true);
 
       return {
         success: true,
@@ -144,6 +157,10 @@ class ShortlistingManager {
       };
     } catch (error) {
       console.error('Error in autoShortlist:', error);
+      
+      // Record failed automation action
+      metricsCollector.recordAutomationAction('auto_shortlist', false);
+      
       throw error;
     }
   }
@@ -177,9 +194,15 @@ class ShortlistingManager {
       const canPromoteResult = await this.canPromote(jobId);
       if (!canPromoteResult.allowed) {
         console.log(`Promotion not allowed for job ${jobId}: ${canPromoteResult.reason}`);
-        await this.logAutomation(jobId, 'promotion_blocked', {
-          reason: canPromoteResult.reason,
-          vacated_rank: vacatedRank
+        await automationLogger.log({
+          jobId,
+          actionType: 'promotion_blocked',
+          triggerSource: 'auto',
+          actorId: null,
+          details: {
+            reason: canPromoteResult.reason,
+            vacated_rank: vacatedRank
+          }
         });
         return {
           success: false,
@@ -201,9 +224,15 @@ class ShortlistingManager {
       }
 
       if (!bufferCandidates || bufferCandidates.length === 0) {
-        await this.logAutomation(jobId, 'buffer_empty', {
-          message: 'No buffer candidates available for promotion',
-          vacated_rank: vacatedRank
+        await automationLogger.log({
+          jobId,
+          actionType: 'buffer_empty',
+          triggerSource: 'auto',
+          actorId: null,
+          details: {
+            message: 'No buffer candidates available for promotion',
+            vacated_rank: vacatedRank
+          }
         });
         return {
           success: false,
@@ -230,12 +259,22 @@ class ShortlistingManager {
       await this.backfillBuffer(jobId);
 
       // 4. Log automation action
-      await this.logAutomation(jobId, 'buffer_promotion', {
-        candidate_id: bufferCandidate.applicant_id,
-        application_id: bufferCandidate.id,
-        new_rank: vacatedRank,
-        previous_rank: bufferCandidate.rank
+      await automationLogger.log({
+        jobId,
+        actionType: 'buffer_promotion',
+        triggerSource: 'auto',
+        actorId: null,
+        details: {
+          candidate_id: bufferCandidate.applicant_id,
+          application_id: bufferCandidate.id,
+          new_rank: vacatedRank,
+          previous_rank: bufferCandidate.rank,
+          reason: 'shortlisted_candidate_dropout'
+        }
       });
+
+      // Record automation action metrics
+      metricsCollector.recordAutomationAction('buffer_promotion', true);
 
       return {
         success: true,
@@ -352,10 +391,17 @@ class ShortlistingManager {
 
       // Log automation action
       if (backfilledCount > 0) {
-        await this.logAutomation(jobId, 'buffer_backfill', {
-          backfilled_count: backfilledCount,
-          target_buffer_size: targetBufferSize,
-          current_buffer_size: currentBufferSize + backfilledCount
+        await automationLogger.log({
+          jobId,
+          actionType: 'buffer_backfill',
+          triggerSource: 'auto',
+          actorId: null,
+          details: {
+            backfilled_count: backfilledCount,
+            target_buffer_size: targetBufferSize,
+            current_buffer_size: currentBufferSize + backfilledCount,
+            reason: 'buffer_below_target'
+          }
         });
       }
 
@@ -428,30 +474,21 @@ class ShortlistingManager {
   /**
    * Log automation action to automation_logs table
    * 
+   * @deprecated Use automationLogger.log() instead
    * @param {string} jobId - UUID of the job
    * @param {string} actionType - Type of action
    * @param {Object} details - Additional details about the action
    * @returns {Promise<void>}
    */
   async logAutomation(jobId, actionType, details) {
-    try {
-      const { error } = await supabase
-        .from('automation_logs')
-        .insert([
-          {
-            job_id: jobId,
-            action_type: actionType,
-            trigger_source: 'auto',
-            details: details
-          }
-        ]);
-
-      if (error) {
-        console.error('Error logging automation:', error);
-      }
-    } catch (error) {
-      console.error('Error in logAutomation:', error);
-    }
+    // Delegate to automationLogger for consistency
+    await automationLogger.log({
+      jobId,
+      actionType,
+      triggerSource: 'auto',
+      actorId: null,
+      details
+    });
   }
 
   /**

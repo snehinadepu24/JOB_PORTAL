@@ -2,6 +2,7 @@ import { supabase } from '../database/supabaseClient.js';
 import { interviewModel } from '../models/interviewSchema.js';
 import { emailService } from '../services/EmailService.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { automationLogger } from '../utils/automationLogger.js';
 import jwt from 'jsonwebtoken';
 
 /**
@@ -106,12 +107,19 @@ class InterviewScheduler {
       const rejectToken = this.generateToken(interview.id, 'reject');
 
       // 7. Log automation action
-      await this.logAutomation(job.id, 'invitation_sent', {
-        interview_id: interview.id,
-        application_id: applicationId,
-        candidate_id: application.applicant_id,
-        confirmation_deadline: confirmationDeadline.toISOString(),
-        rank_at_time: application.rank
+      await automationLogger.log({
+        jobId: job.id,
+        actionType: 'invitation_sent',
+        triggerSource: 'auto',
+        actorId: null,
+        details: {
+          interview_id: interview.id,
+          application_id: applicationId,
+          candidate_id: application.applicant_id,
+          confirmation_deadline: confirmationDeadline.toISOString(),
+          rank_at_time: application.rank,
+          recruiter_id: job.posted_by
+        }
       });
 
       // 8. Queue invitation email with accept/reject links
@@ -267,12 +275,19 @@ class InterviewScheduler {
       }
 
       // 6. Log automation action
-      await this.logAutomation(interview.job_id, 'invitation_accepted', {
-        interview_id: interviewId,
-        candidate_id: interview.candidate_id,
-        slot_selection_deadline: slotSelectionDeadline.toISOString(),
-        previous_status: 'invitation_sent',
-        new_status: 'slot_pending'
+      await automationLogger.log({
+        jobId: interview.job_id,
+        actionType: 'invitation_accepted',
+        triggerSource: 'auto',
+        actorId: interview.candidate_id,
+        details: {
+          interview_id: interviewId,
+          candidate_id: interview.candidate_id,
+          slot_selection_deadline: slotSelectionDeadline.toISOString(),
+          previous_status: 'invitation_sent',
+          new_status: 'slot_pending',
+          application_id: interview.application_id
+        }
       });
 
       // 7. Send slot selection email
@@ -361,13 +376,20 @@ class InterviewScheduler {
       }
 
       // 6. Log automation action
-      await this.logAutomation(interview.job_id, 'invitation_rejected', {
-        interview_id: interviewId,
-        candidate_id: interview.candidate_id,
-        application_id: interview.application_id,
-        vacated_rank: interview.rank_at_time,
-        previous_status: 'invitation_sent',
-        new_status: 'cancelled'
+      await automationLogger.log({
+        jobId: interview.job_id,
+        actionType: 'invitation_rejected',
+        triggerSource: 'auto',
+        actorId: interview.candidate_id,
+        details: {
+          interview_id: interviewId,
+          candidate_id: interview.candidate_id,
+          application_id: interview.application_id,
+          vacated_rank: interview.rank_at_time,
+          previous_status: 'invitation_sent',
+          new_status: 'cancelled',
+          reason: 'candidate_rejected'
+        }
       });
 
       // 7. Trigger buffer promotion
@@ -435,31 +457,21 @@ class InterviewScheduler {
    * 
    * Requirements: 3.9, 8.7
    * 
+   * @deprecated Use automationLogger.log() instead
    * @param {string} jobId - UUID of the job
    * @param {string} actionType - Type of action (e.g., 'invitation_sent')
    * @param {Object} details - Additional details about the action
    * @returns {Promise<void>}
    */
   async logAutomation(jobId, actionType, details) {
-    try {
-      const { error } = await supabase
-        .from('automation_logs')
-        .insert([{
-          job_id: jobId,
-          action_type: actionType,
-          trigger_source: 'auto',
-          actor_id: null,
-          details: details
-        }]);
-
-      if (error) {
-        console.error('Error logging automation:', error);
-        // Don't throw - logging failure shouldn't break the main flow
-      }
-    } catch (error) {
-      console.error('Error in logAutomation:', error);
-      // Don't throw - logging failure shouldn't break the main flow
-    }
+    // Delegate to automationLogger for consistency
+    await automationLogger.log({
+      jobId,
+      actionType,
+      triggerSource: 'auto',
+      actorId: null,
+      details
+    });
   }
 
   /**

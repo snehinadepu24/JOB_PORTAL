@@ -102,11 +102,11 @@ This implementation plan transforms the existing job portal into a fully automat
     - Trigger buffer promotion on rejection
     - _Requirements: 3.5, 3.6_
   
-  - [~]* 5.4 Write property test for interview creation on shortlisting
+  - [ ]* 5.4 Write property test for interview creation on shortlisting
     - **Property 12: Interview Creation on Shortlisting**
     - **Validates: Requirements 3.1, 3.2, 3.3**
   
-  - [~]* 5.5 Write property test for interview status transitions
+  - [ ]* 5.5 Write property test for interview status transitions
     - **Property 13: Interview Status Transitions**
     - **Validates: Requirements 3.5, 3.6, 3.7, 3.8, 4.5, 4.8**
 
@@ -123,11 +123,11 @@ This implementation plan transforms the existing job portal into a fully automat
     - Queue email with retry logic
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
   
-  - [~]* 6.3 Write property test for invitation email format
+  - [ ]* 6.3 Write property test for invitation email format
     - **Property 32: Invitation Email Format**
     - **Validates: Requirements 11.1, 11.3, 11.4**
   
-  - [~]* 6.4 Write property test for email retry logic
+  - [ ]* 6.4 Write property test for email retry logic
     - **Property 34: Email Retry Logic**
     - **Validates: Requirements 11.10, 13.3**
 
@@ -278,7 +278,7 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 26: High Risk Flagging**
     - **Validates: Requirements 7.4, 7.5**
 
-- [~] 13. Negotiation Bot Implementation
+- [ ] 13. Negotiation Bot Implementation
   - [x] 13.1 Create NegotiationBot class with session management
     - Implement `startNegotiation(interviewId, candidateMessage)` method
     - Implement `processMessage(session, message)` method
@@ -311,7 +311,7 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 22: Negotiation Round Limit**
     - **Validates: Requirements 5.6, 5.7**
 
-- [~] 14. Recruiter Dashboard and Analytics
+- [ ] 14. Recruiter Dashboard and Analytics
   - [x] 14.1 Create dashboard API endpoints
     - Create endpoint to get ranked candidates for job
     - Create endpoint to get automation activity log
@@ -346,94 +346,94 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 40: Buffer Health Indicator**
     - **Validates: Requirements 9.9**
 
-- [~] 15. Feature Flags and Observability
-  - [-] 15.1 Implement feature flag system
+- [ ] 15. Feature Flags and Observability
+  - [x] 15.1 Implement feature flag system
     - Create feature_flags table operations
     - Implement `isFeatureEnabled(flagName, jobId)` function
     - Add feature flag checks to all automation code
     - _Requirements: 12.8, 12.9_
   
-  - [~] 15.2 Implement comprehensive logging
+  - [x] 15.2 Implement comprehensive logging
     - Add automation logging to all automated actions
     - Include trigger_source, actor_id, and detailed context
     - Implement log querying utilities
     - _Requirements: 8.7, Observability section_
   
-  - [~] 15.3 Implement metrics collection
+  - [-] 15.3 Implement metrics collection
     - Track system health metrics
     - Implement alert threshold checking
     - Create metrics dashboard endpoint
     - _Requirements: 15.10, Observability section_
   
-  - [~] 15.4 Write unit tests for feature flag control
+  - [ ] 15.4 Write unit tests for feature flag control
     - Test global flag enforcement
     - Test job-level flag overrides
     - Test automation bypass when disabled
     - _Requirements: 12.8, 12.9_
 
-- [~] 16. Security and Validation
-  - [~] 16.1 Implement token validation
+- [ ] 16. Security and Validation
+  - [ ] 16.1 Implement token validation
     - Create secure token generation for interview actions
     - Implement token expiration (7 days)
     - Validate tokens on accept/reject endpoints
     - _Requirements: 14.3, 14.4_
   
-  - [~] 16.2 Implement input validation and sanitization
+  - [ ] 16.2 Implement input validation and sanitization
     - Add validation middleware for all API endpoints
     - Sanitize user inputs to prevent SQL injection and XSS
     - Return descriptive error messages for invalid inputs
     - _Requirements: 13.8, 14.7_
   
-  - [~] 16.3 Implement rate limiting
+  - [ ] 16.3 Implement rate limiting
     - Add rate limiting middleware (100 requests/minute per user)
     - Return appropriate error responses when limit exceeded
     - _Requirements: 13.9_
   
-  - [~] 16.4 Write property test for token validation
+  - [ ] 16.4 Write property test for token validation
     - **Property 48: Token Validation**
     - **Validates: Requirements 14.4**
   
-  - [~] 16.5 Write property test for input sanitization
+  - [ ] 16.5 Write property test for input sanitization
     - **Property 50: Input Sanitization**
     - **Validates: Requirements 14.7**
 
-- [~] 17. Backward Compatibility and Migration
-  - [~] 17.1 Implement manual override functionality
+- [ ] 17. Backward Compatibility and Migration
+  - [ ] 17.1 Implement manual override functionality
     - Preserve existing manual accept/reject endpoints
     - Add bypass logic for manually accepted candidates
     - Update shortlist_status correctly for manual actions
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
   
-  - [~] 17.2 Create data migration scripts
+  - [ ] 17.2 Create data migration scripts
     - Write migration to add new columns with defaults
     - Set default values for existing records
     - Test migration on copy of production data
     - _Requirements: 12.5, 12.6, 12.7_
   
-  - [~] 17.3 Write unit tests for backward compatibility
+  - [ ] 17.3 Write unit tests for backward compatibility
     - Test existing API endpoints still work
     - Test manual override bypasses automation
     - Test feature flag disables automation correctly
     - _Requirements: 12.1-12.4, 12.8-12.9_
 
-- [~] 18. Integration Testing and End-to-End Flows
-  - [~] 18.1 Write integration test for complete hiring flow
+- [ ] 18. Integration Testing and End-to-End Flows
+  - [ ] 18.1 Write integration test for complete hiring flow
     - Submit application → Resume processing → Auto-shortlist → Send invitation → Accept → Select slot → Confirm → Calendar event
     - _Requirements: All requirements_
   
-  - [~] 18.2 Write integration test for buffer promotion flow
+  - [ ] 18.2 Write integration test for buffer promotion flow
     - Shortlist full → Candidate rejects → Buffer promotion → New invitation sent
     - _Requirements: 2.8-2.10, 3.6, 8.4_
   
-  - [~] 18.3 Write integration test for deadline expiration flow
+  - [ ] 18.3 Write integration test for deadline expiration flow
     - Invitation sent → No response → Background scheduler expires → Buffer promotion
     - _Requirements: 3.7, 3.8, 8.2-8.4_
   
-  - [~] 18.4 Write integration test for negotiation flow
+  - [ ] 18.4 Write integration test for negotiation flow
     - Slot conflict → Bot negotiation → Alternate slot found → Confirmation
     - _Requirements: 5.1-5.7_
 
-- [~] 19. Final Checkpoint - Complete system verification
+- [ ] 19. Final Checkpoint - Complete system verification
   - Ensure all tests pass, ask the user if questions arise.
   - Verify all 50 correctness properties are tested
   - Run performance benchmarks

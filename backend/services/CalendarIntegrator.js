@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import CryptoJS from 'crypto-js';
 import { supabase } from '../database/supabaseClient.js';
+import { metricsCollector } from '../utils/metricsCollector.js';
 
 /**
  * Calendar Integrator Service
@@ -782,6 +783,8 @@ class CircuitBreaker {
   async execute(fn) {
     if (this.state === 'OPEN') {
       if (Date.now() < this.nextAttempt) {
+        // Record failed calendar API call due to circuit breaker
+        metricsCollector.recordCalendarApiCall(false);
         throw new Error('Circuit breaker is OPEN - service temporarily unavailable');
       }
       this.state = 'HALF_OPEN';
@@ -791,9 +794,17 @@ class CircuitBreaker {
     try {
       const result = await fn();
       this.onSuccess();
+      
+      // Record successful calendar API call
+      metricsCollector.recordCalendarApiCall(true);
+      
       return result;
     } catch (error) {
       this.onFailure();
+      
+      // Record failed calendar API call
+      metricsCollector.recordCalendarApiCall(false);
+      
       throw error;
     }
   }

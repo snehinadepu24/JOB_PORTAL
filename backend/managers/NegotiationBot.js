@@ -13,6 +13,7 @@
 
 import { supabase } from '../database/supabaseClient.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { automationLogger } from '../utils/automationLogger.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class NegotiationBot {
@@ -417,11 +418,18 @@ class NegotiationBot {
     });
 
     // Log automation action
-    await this.logAutomation(interview.job_id, 'negotiation_escalated', {
-      interview_id: interview.id,
-      session_id: session.id,
-      rounds: session.round,
-      candidate_id: interview.candidate_id
+    await automationLogger.log({
+      jobId: interview.job_id,
+      actionType: 'negotiation_escalated',
+      triggerSource: 'auto',
+      actorId: null,
+      details: {
+        interview_id: interview.id,
+        session_id: session.id,
+        rounds: session.round,
+        candidate_id: interview.candidate_id,
+        reason: 'max_rounds_exceeded'
+      }
     });
   }
 
@@ -483,20 +491,20 @@ class NegotiationBot {
 
   /**
    * Log automation action
+   * @deprecated Use automationLogger.log() instead
    * @param {string} jobId - Job UUID
    * @param {string} actionType - Type of action
    * @param {object} details - Action details
    */
   async logAutomation(jobId, actionType, details) {
-    await supabase
-      .from('automation_logs')
-      .insert({
-        job_id: jobId,
-        action_type: actionType,
-        trigger_source: 'auto',
-        actor_id: null,
-        details
-      });
+    // Delegate to automationLogger for consistency
+    await automationLogger.log({
+      jobId,
+      actionType,
+      triggerSource: 'auto',
+      actorId: null,
+      details
+    });
   }
 }
 

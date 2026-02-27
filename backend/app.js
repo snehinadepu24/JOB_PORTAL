@@ -6,9 +6,11 @@ import applicationRouter from "./routes/applicationRoutes.js";
 import calendarRouter from "./routes/calendarRoutes.js";
 import interviewRouter from "./routes/interviewRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
+import metricsRouter from "./routes/metricsRoutes.js";
 import { config } from "dotenv";
 import cors from "cors";
 import { errorMiddleware } from "./middlewares/error.js";
+import { metricsMiddleware, errorMetricsMiddleware } from "./middlewares/metricsMiddleware.js";
 import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 
@@ -46,6 +48,9 @@ app.use(
   })
 );
 
+// Metrics middleware (track response times and errors)
+app.use(metricsMiddleware);
+
 // Routes
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/job", jobRouter);
@@ -53,8 +58,10 @@ app.use("/api/v1/application", applicationRouter);
 app.use("/api/v1/calendar", calendarRouter);
 app.use("/api/v1/interview", interviewRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/metrics", metricsRouter);
 
-// Error middleware
+// Error middleware (must be after routes)
+app.use(errorMetricsMiddleware); // Track errors in metrics
 app.use(errorMiddleware);
 
 export default app;

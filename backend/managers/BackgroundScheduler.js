@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import { supabase } from '../database/supabaseClient.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { automationLogger } from '../utils/automationLogger.js';
+import { metricsCollector } from '../utils/metricsCollector.js';
 import ShortlistingManager from './ShortlistingManager.js';
 
 /**
@@ -156,6 +158,10 @@ class BackgroundScheduler {
     const duration = Date.now() - startTime;
     console.log(`[BackgroundScheduler] Cycle completed in ${duration}ms`, results);
 
+    // Record scheduler cycle metrics
+    const cycleSuccess = results.errors.length === 0;
+    metricsCollector.recordSchedulerCycle(duration, cycleSuccess);
+
     // Log cycle summary
     await this.logCycleSummary(results, duration);
 
@@ -237,12 +243,19 @@ class BackgroundScheduler {
           );
 
           // Log automation action
-          await this.logAutomation(interview.job_id, 'invitation_expired', {
-            interview_id: interview.id,
-            application_id: interview.application_id,
-            candidate_id: interview.candidate_id,
-            rank_at_time: interview.rank_at_time,
-            confirmation_deadline: interview.confirmation_deadline
+          await automationLogger.log({
+            jobId: interview.job_id,
+            actionType: 'invitation_expired',
+            triggerSource: 'scheduled',
+            actorId: null,
+            details: {
+              interview_id: interview.id,
+              application_id: interview.application_id,
+              candidate_id: interview.candidate_id,
+              rank_at_time: interview.rank_at_time,
+              confirmation_deadline: interview.confirmation_deadline,
+              reason: 'confirmation_deadline_passed'
+            }
           });
 
           count++;
@@ -329,12 +342,19 @@ class BackgroundScheduler {
           );
 
           // Log automation action
-          await this.logAutomation(interview.job_id, 'slot_selection_expired', {
-            interview_id: interview.id,
-            application_id: interview.application_id,
-            candidate_id: interview.candidate_id,
-            rank_at_time: interview.rank_at_time,
-            slot_selection_deadline: interview.slot_selection_deadline
+          await automationLogger.log({
+            jobId: interview.job_id,
+            actionType: 'slot_selection_expired',
+            triggerSource: 'scheduled',
+            actorId: null,
+            details: {
+              interview_id: interview.id,
+              application_id: interview.application_id,
+              candidate_id: interview.candidate_id,
+              rank_at_time: interview.rank_at_time,
+              slot_selection_deadline: interview.slot_selection_deadline,
+              reason: 'slot_selection_deadline_passed'
+            }
           });
 
           count++;
@@ -425,11 +445,16 @@ class BackgroundScheduler {
           await this.shortlistingManager.backfillBuffer(job.id);
           
           // Log automation action
-          await this.logAutomation(job.id, 'buffer_backfill', {
-            reason: 'buffer_below_target',
-            previous_buffer_size: currentBuffer || 0,
-            target_buffer_size: targetBuffer,
-            timestamp: new Date().toISOString()
+          await automationLogger.log({
+            jobId: job.id,
+            actionType: 'buffer_backfill',
+            triggerSource: 'scheduled',
+            actorId: null,
+            details: {
+              reason: 'buffer_below_target',
+              previous_buffer_size: currentBuffer || 0,
+              target_buffer_size: targetBuffer
+            }
           });
 
           backfillCount++;
@@ -546,13 +571,19 @@ class BackgroundScheduler {
           });
 
           // Log that reminder was sent
-          await this.logAutomation(interview.job_id, 'interview_reminder_sent', {
-            interview_id: interview.id,
-            candidate_id: interview.candidate_id,
-            recruiter_id: interview.recruiter_id,
-            scheduled_time: interview.scheduled_time,
-            no_show_risk: interview.no_show_risk,
-            timestamp: new Date().toISOString()
+          await automationLogger.log({
+            jobId: interview.job_id,
+            actionType: 'interview_reminder_sent',
+            triggerSource: 'scheduled',
+            actorId: null,
+            details: {
+              interview_id: interview.id,
+              candidate_id: interview.candidate_id,
+              recruiter_id: interview.recruiter_id,
+              scheduled_time: interview.scheduled_time,
+              no_show_risk: interview.no_show_risk,
+              hours_until_interview: 24
+            }
           });
 
           reminderCount++;
@@ -637,13 +668,19 @@ class BackgroundScheduler {
 
             // Log risk update if score changed significantly (>0.1 difference)
             if (Math.abs(newRiskScore - oldRiskScore) > 0.1) {
-              await this.logAutomation(interview.job_id, 'risk_score_updated', {
-                interview_id: interview.id,
-                candidate_id: interview.candidate_id,
-                old_risk: oldRiskScore,
-                new_risk: newRiskScore,
-                risk_level: response.data.risk_level,
-                timestamp: new Date().toISOString()
+              await automationLogger.log({
+                jobId: interview.job_id,
+                actionType: 'risk_score_updated',
+                triggerSource: 'scheduled',
+                actorId: null,
+                details: {
+                  interview_id: interview.id,
+                  candidate_id: interview.candidate_id,
+                  old_risk: oldRiskScore,
+                  new_risk: newRiskScore,
+                  risk_level: response.data.risk_level,
+                  risk_change: newRiskScore - oldRiskScore
+                }
               });
             }
 
@@ -674,23 +711,16 @@ class BackgroundScheduler {
    * @param {number} duration - Cycle duration in milliseconds
    */
   async logCycleSummary(results, duration) {
-    try {
-      await supabase
-        .from('automation_logs')
-        .insert({
-          job_id: null,
-          action_type: 'background_cycle',
-          trigger_source: 'scheduled',
-          actor_id: null,
-          details: {
-            duration_ms: duration,
-            results: results,
-            timestamp: new Date().toISOString()
-          }
-        });
-    } catch (error) {
-      console.error('[BackgroundScheduler] Error logging cycle summary:', error);
-    }
+    await automationLogger.log({
+      jobId: null,
+      actionType: 'background_cycle',
+      triggerSource: 'scheduled',
+      actorId: null,
+      details: {
+        duration_ms: duration,
+        results: results
+      }
+    });
   }
 
   /**
@@ -700,24 +730,20 @@ class BackgroundScheduler {
    * 
    * Requirements: 8.7
    * 
+   * @deprecated Use automationLogger.log() instead
    * @param {string} jobId - Job ID (can be null for system-wide actions)
    * @param {string} actionType - Type of action performed
    * @param {Object} details - Action details
    */
   async logAutomation(jobId, actionType, details) {
-    try {
-      await supabase
-        .from('automation_logs')
-        .insert({
-          job_id: jobId,
-          action_type: actionType,
-          trigger_source: 'scheduled',
-          actor_id: null,
-          details: details
-        });
-    } catch (error) {
-      console.error('[BackgroundScheduler] Error logging automation:', error);
-    }
+    // Delegate to automationLogger for consistency
+    await automationLogger.log({
+      jobId,
+      actionType,
+      triggerSource: 'scheduled',
+      actorId: null,
+      details
+    });
   }
 
   /**
@@ -737,19 +763,16 @@ class BackgroundScheduler {
       // await emailService.sendAdminAlert(subject, details);
       
       // Log to automation_logs
-      await supabase
-        .from('automation_logs')
-        .insert({
-          job_id: null,
-          action_type: 'admin_alert',
-          trigger_source: 'auto',
-          actor_id: null,
-          details: {
-            subject: subject,
-            details: typeof details === 'object' ? JSON.stringify(details) : String(details),
-            timestamp: new Date().toISOString()
-          }
-        });
+      await automationLogger.log({
+        jobId: null,
+        actionType: 'admin_alert',
+        triggerSource: 'auto',
+        actorId: null,
+        details: {
+          subject: subject,
+          details: typeof details === 'object' ? JSON.stringify(details) : String(details)
+        }
+      });
     } catch (error) {
       console.error('[BackgroundScheduler] Error sending admin alert:', error);
     }

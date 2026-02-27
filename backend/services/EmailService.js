@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { supabase } from '../database/supabaseClient.js';
+import { metricsCollector } from '../utils/metricsCollector.js';
 
 /**
  * Email Service
@@ -148,6 +149,9 @@ class EmailService {
         console.log('Subject:', mailOptions.subject);
         console.log('Content:', mailOptions.text || mailOptions.html);
         console.log('=====================================');
+        
+        // Record as successful (for testing/dev environments)
+        metricsCollector.recordEmailDelivery(true);
         return { success: true, message: 'Email logged (transporter not configured)' };
       }
 
@@ -161,9 +165,17 @@ class EmailService {
       });
 
       console.log('Email sent successfully:', info.messageId);
+      
+      // Record successful email delivery
+      metricsCollector.recordEmailDelivery(true);
+      
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('Error sending email:', error);
+      
+      // Record failed email delivery
+      metricsCollector.recordEmailDelivery(false);
+      
       return { success: false, error: error.message };
     }
   }
