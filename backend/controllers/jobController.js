@@ -21,7 +21,7 @@ export const getAllJobs = catchAsyncErrors(async (req, res, next) => {
 
 export const postJob = catchAsyncErrors(async (req, res, next) => {
   const { role } = req.user;
-  
+
   if (role === "Job Seeker") {
     return next(
       new ErrorHandler("Job Seeker not allowed to access this resource.", 400)
@@ -44,6 +44,10 @@ export const postJob = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please provide full job details.", 400));
   }
 
+  if (location.length < 3) {
+    return next(new ErrorHandler("Location must contain at least 3 characters.", 400));
+  }
+
   if ((!salaryFrom || !salaryTo) && !fixedSalary) {
     return next(
       new ErrorHandler(
@@ -60,7 +64,7 @@ export const postJob = catchAsyncErrors(async (req, res, next) => {
   }
 
   const postedBy = req.user.id;
-  
+
   const { data: job, error } = await supabase
     .from('jobs')
     .insert([
@@ -93,7 +97,7 @@ export const postJob = catchAsyncErrors(async (req, res, next) => {
 
 export const getMyJobs = catchAsyncErrors(async (req, res, next) => {
   const { role } = req.user;
-  
+
   if (role === "Job Seeker") {
     return next(
       new ErrorHandler("Job Seeker not allowed to access this resource.", 400)
@@ -118,7 +122,7 @@ export const getMyJobs = catchAsyncErrors(async (req, res, next) => {
 
 export const updateJob = catchAsyncErrors(async (req, res, next) => {
   const { role } = req.user;
-  
+
   if (role === "Job Seeker") {
     return next(
       new ErrorHandler("Job Seeker not allowed to access this resource.", 400)
@@ -173,7 +177,7 @@ export const updateJob = catchAsyncErrors(async (req, res, next) => {
 
 export const deleteJob = catchAsyncErrors(async (req, res, next) => {
   const { role } = req.user;
-  
+
   if (role === "Job Seeker") {
     return next(
       new ErrorHandler("Job Seeker not allowed to access this resource.", 400)

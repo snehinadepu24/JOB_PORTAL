@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   category VARCHAR(100) NOT NULL,
   country VARCHAR(100) NOT NULL,
   city VARCHAR(100) NOT NULL,
-  location VARCHAR(255) NOT NULL CHECK (char_length(location) >= 20),
+  location VARCHAR(255) NOT NULL CHECK (char_length(location) >= 3),
   fixed_salary INTEGER CHECK (fixed_salary >= 1000 AND fixed_salary <= 999999999),
   salary_from INTEGER CHECK (salary_from >= 1000 AND salary_from <= 999999999),
   salary_to INTEGER CHECK (salary_to >= 1000 AND salary_to <= 999999999),

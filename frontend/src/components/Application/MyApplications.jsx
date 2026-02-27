@@ -56,7 +56,7 @@ const MyApplications = () => {
         .then((res) => {
           toast.success(res.data.message);
           setApplications((prevApplication) =>
-            prevApplication.filter((application) => application._id !== id)
+            prevApplication.filter((application) => application.id !== id)
           );
         });
     } catch (error) {
@@ -79,20 +79,20 @@ const MyApplications = () => {
       {user && user.role === "Job Seeker" ? (
         <div className="container">
           <center>
-          <h1>My Applications</h1>
+            <h1>My Applications</h1>
           </center>
           {applications.length <= 0 ? (
             <>
               {" "}
               <center>
-              <h4>No Applications Found</h4></center>{" "}
+                <h4>No Applications Found</h4></center>{" "}
             </>
           ) : (
             applications.map((element) => {
               return (
                 <JobSeekerCard
                   element={element}
-                  key={element._id}
+                  key={element.id}
                   deleteApplication={deleteApplication}
                   openModal={openModal}
                 />
@@ -103,12 +103,12 @@ const MyApplications = () => {
       ) : (
         <div className="container">
           <center>
-          <h1>Applications From Job Seekers</h1>
+            <h1>Applications From Job Seekers</h1>
           </center>
           {applications.length <= 0 ? (
             <>
-            <center>
-              <h4>No Applications Found</h4>
+              <center>
+                <h4>No Applications Found</h4>
               </center>
             </>
           ) : (
@@ -116,7 +116,7 @@ const MyApplications = () => {
               return (
                 <EmployerCard
                   element={element}
-                  key={element._id}
+                  key={element.id}
                   openModal={openModal}
                 />
               );
@@ -142,7 +142,7 @@ const JobSeekerCard = ({ element, deleteApplication, openModal }) => {
         <p><span>Email:</span> {element.email}</p>
         <p><span>Phone:</span> {element.phone}</p>
         <p><span>Address:</span> {element.address}</p>
-        <p><span>CoverLetter:</span> {element.coverLetter}</p>
+        <p><span>CoverLetter:</span> {element.cover_letter}</p>
         <p className="status-display">
           <span>Application Status:</span>
           <span className={`status ${element.status}`}>
@@ -150,23 +150,23 @@ const JobSeekerCard = ({ element, deleteApplication, openModal }) => {
           </span>
         </p>
       </div>
-      
+
       {/* Middle section - View PDF button */}
       <div className={`resume-section ${element.status !== "pending" ? "right-aligned" : ""}`}>
-        <div 
-          className="pdf-thumbnail" 
-          onClick={() => openModal(element.resume.url)}
+        <div
+          className="pdf-thumbnail"
+          onClick={() => openModal(element.resume_url)}
         >
           View PDF Resume
         </div>
       </div>
-      
+
       {/* Right section - Delete button (only for pending) */}
       {element.status === "pending" && (
         <div className="action-section">
-          <button 
+          <button
             className="delete-btn"
-            onClick={() => deleteApplication(element._id)}
+            onClick={() => deleteApplication(element.id)}
           >
             Delete Application
           </button>
@@ -182,11 +182,11 @@ const EmployerCard = ({ element, openModal }) => {
   const handleStatusUpdate = async (newStatus) => {
     try {
       const response = await axios.put(
-        `http://localhost:4000/api/v1/application/status/${element._id}`,
+        `http://localhost:4000/api/v1/application/status/${element.id}`,
         { status: newStatus },
         { withCredentials: true }
       );
-      
+
       if (response.data.success) {
         setStatus(newStatus);
         toast.success(response.data.message);
@@ -204,7 +204,7 @@ const EmployerCard = ({ element, openModal }) => {
         <p><span>Email:</span> {element.email}</p>
         <p><span>Phone:</span> {element.phone}</p>
         <p><span>Address:</span> {element.address}</p>
-        <p><span>CoverLetter:</span> {element.coverLetter}</p>
+        <p><span>CoverLetter:</span> {element.cover_letter}</p>
         <p className="status-display">
           <span>Application Status:</span>
           <span className={`status ${status}`}>
@@ -212,27 +212,27 @@ const EmployerCard = ({ element, openModal }) => {
           </span>
         </p>
       </div>
-      
+
       {/* Middle section - View PDF button */}
       <div className="resume-section">
-        <div 
-          className="pdf-thumbnail" 
-          onClick={() => openModal(element.resume.url)}
+        <div
+          className="pdf-thumbnail"
+          onClick={() => openModal(element.resume_url)}
         >
           View PDF Resume
         </div>
       </div>
-      
+
       {/* Right section - Action buttons */}
       <div className="action-section">
-        <button 
+        <button
           onClick={() => handleStatusUpdate("accepted")}
           className={status === "accepted" ? "accept-btn active" : "accept-btn"}
           disabled={status === "accepted"}
         >
           Accept
         </button>
-        <button 
+        <button
           onClick={() => handleStatusUpdate("rejected")}
           className={status === "rejected" ? "reject-btn active" : "reject-btn"}
           disabled={status === "rejected"}

@@ -51,22 +51,22 @@ const JobDetails = () => {
             Description: <span>{job.description}</span>
           </p>
           <p>
-            Job Posted On: <span>{job.jobPostedOn}</span>
+            Job Posted On: <span>{job.job_posted_on}</span>
           </p>
           <p>
             Salary:{" "}
-            {job.fixedSalary ? (
-              <span>{job.fixedSalary}</span>
+            {job.fixed_salary ? (
+              <span>{job.fixed_salary}</span>
             ) : (
               <span>
-                {job.salaryFrom} - {job.salaryTo}
+                {job.salary_from} - {job.salary_to}
               </span>
             )}
           </p>
           {user && user.role === "Employer" ? (
             <></>
           ) : (
-            <Link to={`/application/${job._id}`}>Apply Now</Link>
+            <Link to={`/application/${job.id}`}>Apply Now</Link>
           )}
         </div>
       </div>

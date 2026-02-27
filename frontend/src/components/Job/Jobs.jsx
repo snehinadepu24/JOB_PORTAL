@@ -32,12 +32,12 @@ const Jobs = () => {
   const filteredJobs = jobs.jobs?.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "" || job.category === categoryFilter;
-    const matchesLocation = 
-      locationFilter === "" || 
+    const matchesLocation =
+      locationFilter === "" ||
       job.location.toLowerCase().includes(locationFilter.toLowerCase()) ||
       job.city.toLowerCase().includes(locationFilter.toLowerCase()) ||
       job.country.toLowerCase().includes(locationFilter.toLowerCase());
-    
+
     return matchesSearch && matchesCategory && matchesLocation;
   });
 
@@ -79,11 +79,11 @@ const Jobs = () => {
         <div className="banner">
           {filteredJobs && filteredJobs.length > 0 ? (
             filteredJobs.map((element) => (
-              <div className="card" key={element._id}>
+              <div className="card" key={element.id}>
                 <p>{element.title}</p>
                 <p>{element.category}</p>
                 <p>{element.city}, {element.country}</p>
-                <Link to={`/job/${element._id}`}>Job Details</Link>
+                <Link to={`/job/${element.id}`}>Job Details</Link>
               </div>
             ))
           ) : (
