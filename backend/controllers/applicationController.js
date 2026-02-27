@@ -3,6 +3,74 @@ import ErrorHandler from "../middlewares/error.js";
 import { supabase } from "../database/supabaseClient.js";
 import cloudinary from "cloudinary";
 import validator from "validator";
+import axios from "axios";
+
+// Python service URL from environment or default
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
+
+/**
+ * Async function to process resume via Python service
+ * This runs in the background without blocking the application submission response
+ */
+async function processResumeAsync(applicationId, resumeUrl, jobDescription) {
+  try {
+    console.log(`Starting async resume processing for application ${applicationId}`);
+    
+    // Call Python service to process resume
+    const response = await axios.post(
+      `${PYTHON_SERVICE_URL}/api/python/process-resume`,
+      {
+        application_id: applicationId,
+        resume_url: resumeUrl,
+        job_description: jobDescription
+      },
+      {
+        timeout: 30000 // 30 second timeout as per requirements
+      }
+    );
+
+    if (response.data.success) {
+      // Store fit_score, summary, and extracted features in applications table
+      const { fit_score, summary, extracted_features } = response.data;
+      
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({
+          fit_score: fit_score,
+          summary: summary,
+          ai_processed: true,
+          // Store extracted features as JSONB if needed, or in separate columns
+          // For now, we'll just store the core fields
+        })
+        .eq('id', applicationId);
+
+      if (updateError) {
+        console.error(`Error updating application ${applicationId}:`, updateError);
+      } else {
+        console.log(`Successfully processed application ${applicationId} with fit_score: ${fit_score}`);
+      }
+    } else {
+      throw new Error(response.data.error || 'Resume processing failed');
+    }
+  } catch (error) {
+    console.error(`Error processing resume for application ${applicationId}:`, error.message);
+    
+    // Set fit_score to 0 on failure as per requirements
+    const { error: updateError } = await supabase
+      .from('applications')
+      .update({
+        fit_score: 0,
+        ai_processed: true,
+        summary: 'Resume processing failed'
+      })
+      .eq('id', applicationId);
+
+    if (updateError) {
+      console.error(`Error updating failed application ${applicationId}:`, updateError);
+    }
+  }
+}
+
 
 export const postApplication = catchAsyncErrors(async (req, res, next) => {
   const { role } = req.user;
@@ -93,6 +161,7 @@ export const postApplication = catchAsyncErrors(async (req, res, next) => {
           employer_role: "Employer",
           resume_public_id: cloudinaryResponse.public_id,
           resume_url: cloudinaryResponse.secure_url,
+          job_id: jobId, // Add job_id to link application to job
         }
       ])
       .select()
@@ -101,6 +170,14 @@ export const postApplication = catchAsyncErrors(async (req, res, next) => {
     if (error) {
       return next(new ErrorHandler(error.message, 500));
     }
+
+    // Trigger async resume processing (non-blocking)
+    // This runs in the background and doesn't block the response
+    processResumeAsync(application.id, application.resume_url, jobDetails.description)
+      .catch(err => {
+        // Log error but don't fail the request
+        console.error('Background resume processing error:', err);
+      });
 
     res.status(200).json({
       success: true,
