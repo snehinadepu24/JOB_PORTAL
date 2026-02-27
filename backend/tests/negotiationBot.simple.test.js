@@ -40,7 +40,7 @@ const bot = new NegotiationBot(mockCalendarIntegrator, mockEmailService);
 // Test 1: Parse availability from message with "next week"
 console.log('Test 1: Parse availability from "next week" message');
 try {
-  const availability = bot.parseAvailability("I'm available next week");
+  const availability = bot.parseAvailabilityRegex("I'm available next week");
   
   if (!availability) {
     throw new Error('Failed to parse availability');
@@ -69,7 +69,7 @@ try {
 // Test 2: Parse availability with time preferences
 console.log('\nTest 2: Parse availability with time preferences');
 try {
-  const availability = bot.parseAvailability("I'm free Monday afternoon");
+  const availability = bot.parseAvailabilityRegex("I'm free Monday afternoon");
   
   if (!availability) {
     throw new Error('Failed to parse availability');
@@ -97,7 +97,7 @@ try {
 // Test 3: Parse morning preference
 console.log('\nTest 3: Parse morning preference');
 try {
-  const availability = bot.parseAvailability("I'm available this week in the morning");
+  const availability = bot.parseAvailabilityRegex("I'm available this week in the morning");
   
   if (!availability) {
     throw new Error('Failed to parse availability');
@@ -262,7 +262,7 @@ try {
 // Test 8: Return null for unclear messages
 console.log('\nTest 8: Return null for unclear availability messages');
 try {
-  const availability = bot.parseAvailability("I can't make it");
+  const availability = bot.parseAvailabilityRegex("I can't make it");
   
   if (availability !== null) {
     throw new Error('Should return null for unclear message');

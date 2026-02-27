@@ -15,11 +15,13 @@ import { supabase } from '../database/supabaseClient.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { automationLogger } from '../utils/automationLogger.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getGeminiClient } from '../services/GeminiClient.js';
 
 class NegotiationBot {
-  constructor(calendarIntegrator, emailService) {
+  constructor(calendarIntegrator, emailService, geminiClient = null) {
     this.calendarIntegrator = calendarIntegrator;
     this.emailService = emailService;
+    this.geminiClient = geminiClient || getGeminiClient();
     this.MAX_ROUNDS = 3;
   }
 
@@ -108,10 +110,10 @@ class NegotiationBot {
     }
 
     // Parse candidate availability
-    const availability = this.parseAvailability(message);
+    const availability = await this.parseAvailability(message);
 
     if (!availability) {
-      const response = "I'd be happy to help find a suitable time. Could you please provide your available dates and times? For example: 'I'm available Monday-Wednesday next week, 2-5 PM' or 'I'm free on 12/15 and 12/16 in the afternoon'.";
+      const response = await this.generateResponse('clarification', { history });
       
       history.push({
         role: 'bot',
@@ -148,7 +150,10 @@ class NegotiationBot {
     if (matchingSlots.length > 0) {
       // Found matching slots - suggest up to 3
       const suggestions = matchingSlots.slice(0, 3);
-      const response = this.formatSlotSuggestions(suggestions);
+      const response = await this.generateResponse('slot_suggestions', { 
+        slots: suggestions, 
+        history 
+      });
 
       history.push({
         role: 'bot',
@@ -171,7 +176,11 @@ class NegotiationBot {
         // Escalate to recruiter
         await this.escalateToRecruiter(session, interview, history);
 
-        const response = "I haven't been able to find a matching time after several attempts. I've notified the recruiter, who will reach out to you directly to schedule the interview. Thank you for your patience!";
+        const response = await this.generateResponse('escalation', { 
+          history,
+          round: newRound,
+          maxRounds: this.MAX_ROUNDS
+        });
 
         history.push({
           role: 'bot',
@@ -189,7 +198,11 @@ class NegotiationBot {
       }
 
       // Ask for alternative times
-      const response = `Unfortunately, those times don't align with the recruiter's availability. Could you provide some alternative times? (Attempt ${newRound} of ${this.MAX_ROUNDS})`;
+      const response = await this.generateResponse('request_alternatives', {
+        round: newRound,
+        maxRounds: this.MAX_ROUNDS,
+        history
+      });
 
       history.push({
         role: 'bot',
@@ -207,15 +220,45 @@ class NegotiationBot {
   }
 
   /**
-   * Parse availability from candidate message
+   * Parse availability from candidate message with Gemini integration
+   * 
+   * Requirements: 2.1, 2.2, 4.1, 9.4
+   * 
+   * @param {string} message - Candidate message
+   * @returns {Promise<object|null>} Parsed availability or null if not found
+   */
+  async parseAvailability(message) {
+    // Check if Gemini parsing is enabled
+    if (this.geminiClient && await isFeatureEnabled('gemini_parsing')) {
+      try {
+        console.log('[NegotiationBot] Attempting Gemini-powered availability parsing');
+        const geminiResult = await this.geminiClient.extractAvailability(message);
+        
+        if (geminiResult) {
+          console.log('[NegotiationBot] Successfully parsed availability using Gemini');
+          return geminiResult;
+        }
+        
+        console.log('[NegotiationBot] Gemini returned null, falling back to regex parsing');
+      } catch (error) {
+        console.error('[NegotiationBot] Gemini parsing failed, falling back to regex:', error.message);
+      }
+    } else {
+      console.log('[NegotiationBot] Gemini parsing disabled or client unavailable, using regex');
+    }
+    
+    // Fallback to regex-based parsing
+    return this.parseAvailabilityRegex(message);
+  }
+
+  /**
+   * Parse availability from candidate message using regex patterns
    * @param {string} message - Candidate message
    * @returns {object|null} Parsed availability or null if not found
    */
-  parseAvailability(message) {
+  parseAvailabilityRegex(message) {
     // Simple pattern matching for dates and times
     // In production, consider using NLP library like compromise.js or chrono-node
-    
-    const lowerMessage = message.toLowerCase();
     
     // Check for day names
     const dayPattern = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/gi;
@@ -353,6 +396,134 @@ class NegotiationBot {
       
       return true;
     });
+  }
+
+  /**
+   * Generate response with Gemini integration
+   * 
+   * Requirements: 3.1, 3.2, 3.3, 4.2, 9.4
+   * 
+   * @param {string} type - Response type: 'clarification', 'slot_suggestions', 'request_alternatives', 'escalation'
+   * @param {object} context - Context for response generation
+   * @param {Array} context.slots - Available slots (for slot_suggestions)
+   * @param {number} context.round - Current round number (for request_alternatives)
+   * @param {number} context.maxRounds - Maximum rounds (for request_alternatives)
+   * @param {Array} context.history - Conversation history (optional)
+   * @returns {Promise<string>} Generated response
+   */
+  async generateResponse(type, context = {}) {
+    // Check if Gemini response generation is enabled
+    if (this.geminiClient && await isFeatureEnabled('gemini_responses')) {
+      try {
+        console.log('[NegotiationBot] Attempting Gemini-powered response generation');
+        
+        // Prepare context for Gemini
+        const geminiContext = {
+          type: this._mapResponseType(type),
+          history: context.history || [],
+          slots: context.slots || null,
+          round: context.round || 1,
+          maxRounds: context.maxRounds || this.MAX_ROUNDS,
+          state: context.state || 'active'
+        };
+        
+        const geminiResponse = await this.geminiClient.generateResponse(geminiContext);
+        
+        if (geminiResponse && this._validateGeneratedResponse(geminiResponse)) {
+          console.log('[NegotiationBot] Successfully generated response using Gemini');
+          return geminiResponse;
+        }
+        
+        console.log('[NegotiationBot] Gemini returned invalid response, falling back to template');
+      } catch (error) {
+        console.error('[NegotiationBot] Gemini response generation failed, falling back to template:', error.message);
+      }
+    } else {
+      console.log('[NegotiationBot] Gemini response generation disabled or client unavailable, using template');
+    }
+    
+    // Fallback to template-based response
+    return this.generateTemplateResponse(type, context);
+  }
+
+  /**
+   * Map internal response type to Gemini response type
+   * @private
+   * @param {string} type - Internal response type
+   * @returns {string} Gemini response type
+   */
+  _mapResponseType(type) {
+    const typeMap = {
+      'slot_suggestions': 'slot_suggestion',
+      'request_alternatives': 'request_alternatives',
+      'escalation': 'escalation',
+      'clarification': 'clarification'
+    };
+    
+    return typeMap[type] || type;
+  }
+
+  /**
+   * Validate generated response from Gemini
+   * @private
+   * @param {string} response - Generated response
+   * @returns {boolean} True if valid
+   */
+  _validateGeneratedResponse(response) {
+    if (!response || typeof response !== 'string') {
+      return false;
+    }
+    
+    // Check minimum length
+    if (response.trim().length < 10) {
+      console.warn('[NegotiationBot] Response too short');
+      return false;
+    }
+    
+    // Check maximum word count (allow some buffer beyond 200 words)
+    const wordCount = response.split(/\s+/).length;
+    if (wordCount > 250) {
+      console.warn('[NegotiationBot] Response exceeds word limit:', wordCount);
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Generate template-based response (fallback when Gemini is unavailable)
+   * 
+   * Requirements: 4.2
+   * 
+   * @param {string} type - Response type: 'clarification', 'slot_suggestions', 'request_alternatives', 'escalation'
+   * @param {object} context - Context for response generation
+   * @param {Array} context.slots - Available slots (for slot_suggestions)
+   * @param {number} context.round - Current round number (for request_alternatives)
+   * @param {number} context.maxRounds - Maximum rounds (for request_alternatives)
+   * @returns {string} Generated response
+   */
+  generateTemplateResponse(type, context = {}) {
+    switch (type) {
+      case 'clarification':
+        return "I'd be happy to help find a suitable time. Could you please provide your available dates and times? For example: 'I'm available Monday-Wednesday next week, 2-5 PM' or 'I'm free on 12/15 and 12/16 in the afternoon'.";
+
+      case 'slot_suggestions':
+        if (!context.slots || context.slots.length === 0) {
+          throw new Error('Slots required for slot_suggestions response type');
+        }
+        return this.formatSlotSuggestions(context.slots);
+
+      case 'request_alternatives':
+        const round = context.round || 1;
+        const maxRounds = context.maxRounds || this.MAX_ROUNDS;
+        return `Unfortunately, those times don't align with the recruiter's availability. Could you provide some alternative times? (Attempt ${round} of ${maxRounds})`;
+
+      case 'escalation':
+        return "I haven't been able to find a matching time after several attempts. I've notified the recruiter, who will reach out to you directly to schedule the interview. Thank you for your patience!";
+
+      default:
+        throw new Error(`Unknown response type: ${type}`);
+    }
   }
 
   /**
