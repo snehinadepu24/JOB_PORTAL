@@ -823,3 +823,767 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, [deadline]);
 ```
+
+
+#### 3.3.4 NegotiationChat Component (NEW)
+
+**File:** `frontend/src/components/Interview/NegotiationChat.jsx`
+
+**Purpose:** Chat interface for negotiating interview times when no slots match
+
+**Props:** None (uses route params)
+
+**State:**
+- `messages`: array of chat messages
+- `inputText`: string
+- `sending`: boolean
+- `sessionActive`: boolean
+- `negotiationRounds`: number
+- `maxRounds`: number (default: 5)
+- `escalated`: boolean
+
+**Structure:**
+```jsx
+<div className="negotiation-chat-page">
+  <div className="chat-header">
+    <h2>Schedule Your Interview</h2>
+    <p>Let's find a time that works for both of us</p>
+    <div className="rounds-indicator">
+      Round {negotiationRounds} of {maxRounds}
+    </div>
+  </div>
+  
+  <div className="chat-messages">
+    {messages.map(msg => (
+      <ChatMessage
+        key={msg.id}
+        message={msg}
+        isBot={msg.sender === 'bot'}
+      />
+    ))}
+    {sending && <TypingIndicator />}
+  </div>
+  
+  {sessionActive && !escalated && (
+    <div className="chat-input">
+      <textarea
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        placeholder="Share your availability (e.g., 'I'm free Monday 2-4pm or Tuesday morning')"
+        rows="3"
+      />
+      <button 
+        onClick={handleSend}
+        disabled={sending || !inputText.trim()}
+      >
+        Send
+      </button>
+    </div>
+  )}
+  
+  {escalated && (
+    <div className="escalation-notice">
+      <h3>Escalated to Recruiter</h3>
+      <p>The recruiter will contact you directly to schedule your interview.</p>
+    </div>
+  )}
+</div>
+```
+
+**API Calls:**
+- GET `/api/interviews/:interviewId/negotiation/:sessionId` - Get chat history
+- POST `/api/interviews/:interviewId/negotiation/:sessionId/message` - Send message
+
+**Message Flow:**
+1. User sends availability message
+2. Backend processes with NegotiationBot
+3. Bot responds with matched slots or follow-up questions
+4. If max rounds exceeded → escalate to recruiter
+
+#### 3.3.5 MyApplications Component (ENHANCED)
+
+**File:** `frontend/src/components/Application/MyApplications.jsx`
+
+**Enhancements:**
+- Display interview status for each application
+- Show action buttons for pending interviews
+- Display scheduled interview details
+
+**New Fields in Application Card:**
+```jsx
+<div className="application-card">
+  {/* Existing fields: job title, company, applied date, status */}
+  
+  {/* NEW: Interview Status Section */}
+  {application.interview_status && (
+    <div className="interview-status-section">
+      <h4>Interview Status</h4>
+      <StatusBadge status={application.interview_status} />
+      
+      {application.interview_status === 'invitation_sent' && (
+        <div className="interview-actions">
+          <button 
+            onClick={() => handleAccept(application.interview_id)}
+            className="btn btn-success"
+          >
+            Accept Interview
+          </button>
+          <button 
+            onClick={() => handleReject(application.interview_id)}
+            className="btn btn-secondary"
+          >
+            Decline
+          </button>
+          <p className="deadline-text">
+            Respond by: {formatDate(application.confirmation_deadline)}
+          </p>
+        </div>
+      )}
+      
+      {application.interview_status === 'accepted' && (
+        <div className="slot-selection-prompt">
+          <p>Please select your interview time</p>
+          <button 
+            onClick={() => navigateToSlotSelection(application.interview_id)}
+            className="btn btn-primary"
+          >
+            Select Time Slot
+          </button>
+        </div>
+      )}
+      
+      {application.interview_status === 'confirmed' && (
+        <div className="interview-details">
+          <p><strong>Scheduled:</strong> {formatDateTime(application.interview_time)}</p>
+          <p><strong>Duration:</strong> {application.interview_duration} minutes</p>
+          {application.meeting_link && (
+            <a href={application.meeting_link} target="_blank" rel="noopener noreferrer">
+              Join Meeting
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+```
+
+**API Calls:**
+- GET `/api/applications/myapplications` - Enhanced to include interview data
+
+### 3.4 Shared Components
+
+#### 3.4.1 StatusBadge Component (NEW)
+
+**File:** `frontend/src/components/Shared/StatusBadge.jsx`
+
+**Purpose:** Display color-coded status badges
+
+**Props:**
+- `status`: string (application or interview status)
+- `size`: 'small' | 'medium' | 'large'
+
+**Status Color Mapping:**
+```javascript
+const statusColors = {
+  // Application statuses
+  'pending_ai_processing': 'gray',
+  'processed': 'blue',
+  'shortlisted': 'green',
+  'buffer': 'yellow',
+  'rejected': 'red',
+  
+  // Interview statuses
+  'invitation_sent': 'blue',
+  'accepted': 'green',
+  'rejected': 'red',
+  'confirmed': 'green',
+  'negotiating': 'yellow',
+  'escalated': 'orange',
+  'completed': 'gray'
+};
+```
+
+#### 3.4.2 CandidateCard Component (NEW)
+
+**File:** `frontend/src/components/Shared/CandidateCard.jsx`
+
+**Purpose:** Display candidate information in dashboard
+
+**Props:**
+- `candidate`: object
+- `onClick`: function
+- `showActions`: boolean
+
+**Structure:**
+```jsx
+<div className="candidate-card" onClick={onClick}>
+  <div className="candidate-header">
+    <h4>{candidate.name}</h4>
+    <StatusBadge status={candidate.status} />
+  </div>
+  
+  <div className="candidate-metrics">
+    <div className="metric">
+      <label>Rank:</label>
+      <span>#{candidate.rank}</span>
+    </div>
+    <div className="metric">
+      <label>Fit Score:</label>
+      <span>{candidate.fit_score}%</span>
+    </div>
+  </div>
+  
+  <div className="candidate-interview">
+    <label>Interview:</label>
+    <StatusBadge status={candidate.interview_status} size="small" />
+  </div>
+  
+  {showActions && (
+    <div className="candidate-actions">
+      <button onClick={(e) => handleViewDetails(e, candidate)}>
+        View Details
+      </button>
+    </div>
+  )}
+</div>
+```
+
+#### 3.4.3 ConfirmDialog Component (NEW)
+
+**File:** `frontend/src/components/Shared/ConfirmDialog.jsx`
+
+**Purpose:** Reusable confirmation modal
+
+**Props:**
+- `isOpen`: boolean
+- `title`: string
+- `message`: string
+- `onConfirm`: function
+- `onCancel`: function
+- `confirmText`: string (default: 'Confirm')
+- `cancelText`: string (default: 'Cancel')
+- `variant`: 'danger' | 'warning' | 'info'
+
+#### 3.4.4 SlotCard Component (NEW)
+
+**File:** `frontend/src/components/Shared/SlotCard.jsx`
+
+**Purpose:** Display interview time slot option
+
+**Props:**
+- `slot`: object { start_time, end_time, duration }
+- `selected`: boolean
+- `onClick`: function
+
+**Structure:**
+```jsx
+<div 
+  className={`slot-card ${selected ? 'selected' : ''}`}
+  onClick={onClick}
+>
+  <div className="slot-date">
+    {formatDate(slot.start_time)}
+  </div>
+  <div className="slot-time">
+    {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+  </div>
+  <div className="slot-duration">
+    {slot.duration} minutes
+  </div>
+  {selected && <CheckIcon />}
+</div>
+```
+
+#### 3.4.5 MetricCard Component (NEW)
+
+**File:** `frontend/src/components/Shared/MetricCard.jsx`
+
+**Purpose:** Display analytics metrics
+
+**Props:**
+- `title`: string
+- `value`: string | number
+- `icon`: string
+- `trend`: object { direction: 'up' | 'down', value: number }
+- `color`: string
+
+## 4. Data Models & Interfaces
+
+### 4.1 Core Data Types
+
+```typescript
+// Job
+interface Job {
+  id: string;
+  title: string;
+  description: string;
+  required_skills: string[];
+  experience_required: number;
+  number_of_openings: number;
+  shortlist_target: number;
+  applications_closed: boolean;
+  automation_started: boolean;
+  created_at: string;
+  applications_count?: number;
+}
+
+// Application
+interface Application {
+  id: string;
+  job_id: string;
+  user_id: string;
+  resume_url: string;
+  status: ApplicationStatus;
+  fit_score: number;
+  rank: number;
+  interview_id?: string;
+  interview_status?: InterviewStatus;
+  created_at: string;
+}
+
+type ApplicationStatus = 
+  | 'pending_ai_processing'
+  | 'processed'
+  | 'shortlisted'
+  | 'buffer'
+  | 'rejected';
+
+// Interview
+interface Interview {
+  id: string;
+  application_id: string;
+  status: InterviewStatus;
+  confirmation_deadline: string;
+  slot_selection_deadline?: string;
+  scheduled_time?: string;
+  duration?: number;
+  meeting_link?: string;
+  created_at: string;
+}
+
+type InterviewStatus =
+  | 'invitation_sent'
+  | 'accepted'
+  | 'rejected'
+  | 'confirmed'
+  | 'negotiating'
+  | 'escalated'
+  | 'completed'
+  | 'no_show';
+
+// Candidate (Dashboard view)
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  application_id: string;
+  status: ApplicationStatus;
+  fit_score: number;
+  rank: number;
+  interview_id?: string;
+  interview_status?: InterviewStatus;
+  matched_skills: string[];
+  missing_skills: string[];
+}
+
+// Shortlist Summary
+interface ShortlistSummary {
+  shortlisted: number;
+  target: number;
+  buffer: number;
+  bufferTarget: number;
+  pending: number;
+  rejected: number;
+  bufferHealth: 'healthy' | 'warning' | 'critical';
+  applicationsClosed: boolean;
+  automationStarted: boolean;
+}
+
+// Activity Log Entry
+interface ActivityLogEntry {
+  id: string;
+  timestamp: string;
+  action_type: string;
+  candidate_name: string;
+  outcome: string;
+  details?: string;
+}
+
+// Analytics
+interface Analytics {
+  time_saved_hours: number;
+  time_saved_breakdown: {
+    shortlisting: number;
+    scheduling: number;
+    follow_ups: number;
+  };
+  automation_success_rate: number;
+  average_time_to_interview_days: number;
+  time_to_interview_distribution: {
+    '0-2_days': number;
+    '3-5_days': number;
+    '6+_days': number;
+  };
+  buffer_health: {
+    status: string;
+    percentage: number;
+    color: string;
+  };
+  conversion_funnel: {
+    applications: number;
+    shortlisted: number;
+    accepted: number;
+    confirmed: number;
+  };
+  response_rate: number;
+  no_show_rate: number;
+  average_negotiation_rounds: number;
+  trends: {
+    success_rate_change: number;
+  };
+}
+
+// Time Slot
+interface TimeSlot {
+  id: string;
+  start_time: string;
+  end_time: string;
+  duration: number;
+}
+
+// Chat Message
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'bot';
+  content: string;
+  timestamp: string;
+}
+```
+
+## 5. API Integration
+
+### 5.1 Backend Endpoints (Existing)
+
+```javascript
+// Auth
+POST /api/user/register
+POST /api/user/login
+POST /api/user/logout
+GET /api/user/getuser
+
+// Jobs
+POST /api/job/postjob
+GET /api/job/getall
+GET /api/job/:id
+GET /api/job/getmyjobs
+
+// Applications
+POST /api/application/apply/:id
+GET /api/application/myapplications
+GET /api/application/:id
+```
+
+### 5.2 Backend Endpoints (Already Implemented - Need Frontend Integration)
+
+```javascript
+// Dashboard
+GET /api/dashboard/:jobId/shortlist-status
+GET /api/dashboard/:jobId/candidates
+GET /api/dashboard/:jobId/activity
+GET /api/dashboard/:jobId/analytics
+
+// Job Actions
+POST /api/jobs/:jobId/close-applications
+POST /api/jobs/:jobId/start-automation
+
+// Interviews
+POST /api/interviews/:interviewId/accept/:token
+POST /api/interviews/:interviewId/reject/:token
+GET /api/interviews/:interviewId/slots
+POST /api/interviews/:interviewId/confirm-slot
+GET /api/interviews/:interviewId/negotiation/:sessionId
+POST /api/interviews/:interviewId/negotiation/:sessionId/message
+```
+
+### 5.3 API Service Functions
+
+**File:** `frontend/src/services/dashboardService.js`
+
+```javascript
+import apiClient from './api';
+
+export const dashboardService = {
+  getShortlistStatus: (jobId) => 
+    apiClient.get(`/dashboard/${jobId}/shortlist-status`),
+  
+  getCandidates: (jobId, params) => 
+    apiClient.get(`/dashboard/${jobId}/candidates`, { params }),
+  
+  getActivityLog: (jobId, params) => 
+    apiClient.get(`/dashboard/${jobId}/activity`, { params }),
+  
+  getAnalytics: (jobId) => 
+    apiClient.get(`/dashboard/${jobId}/analytics`),
+};
+```
+
+**File:** `frontend/src/services/jobService.js`
+
+```javascript
+import apiClient from './api';
+
+export const jobService = {
+  closeApplications: (jobId) => 
+    apiClient.post(`/jobs/${jobId}/close-applications`),
+  
+  startAutomation: (jobId) => 
+    apiClient.post(`/jobs/${jobId}/start-automation`),
+  
+  postJob: (jobData) => 
+    apiClient.post('/job/postjob', jobData),
+  
+  getMyJobs: () => 
+    apiClient.get('/job/getmyjobs'),
+};
+```
+
+**File:** `frontend/src/services/interviewService.js`
+
+```javascript
+import apiClient from './api';
+
+export const interviewService = {
+  acceptInterview: (interviewId, token) => 
+    apiClient.post(`/interviews/${interviewId}/accept/${token}`),
+  
+  rejectInterview: (interviewId, token, feedback) => 
+    apiClient.post(`/interviews/${interviewId}/reject/${token}`, { feedback }),
+  
+  getSlots: (interviewId) => 
+    apiClient.get(`/interviews/${interviewId}/slots`),
+  
+  confirmSlot: (interviewId, slotId) => 
+    apiClient.post(`/interviews/${interviewId}/confirm-slot`, { slotId }),
+  
+  getNegotiationHistory: (interviewId, sessionId) => 
+    apiClient.get(`/interviews/${interviewId}/negotiation/${sessionId}`),
+  
+  sendNegotiationMessage: (interviewId, sessionId, message) => 
+    apiClient.post(`/interviews/${interviewId}/negotiation/${sessionId}/message`, { message }),
+};
+```
+
+## 6. Error Handling Strategy
+
+### 6.1 Global Error Handling
+
+**Axios Interceptor (already in api.js):**
+- 401 errors → redirect to login
+- 403 errors → show "Access Denied" message
+- 500 errors → show "Server Error" message
+- Network errors → show "Connection Error" message
+
+### 6.2 Component-Level Error Handling
+
+**Pattern:**
+```javascript
+const [error, setError] = useState(null);
+const [loading, setLoading] = useState(false);
+
+const fetchData = async () => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const response = await apiService.getData();
+    setData(response.data);
+  } catch (err) {
+    setError(err.response?.data?.message || 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+### 6.3 User-Friendly Error Messages
+
+```javascript
+const errorMessages = {
+  'NETWORK_ERROR': 'Unable to connect. Please check your internet connection.',
+  'TOKEN_EXPIRED': 'Your session has expired. Please log in again.',
+  'INVALID_TOKEN': 'Invalid or expired link. Please request a new one.',
+  'DEADLINE_PASSED': 'The deadline for this action has passed.',
+  'NO_SLOTS_AVAILABLE': 'No available time slots. Please try negotiating.',
+  'AUTOMATION_ALREADY_STARTED': 'Automation is already running for this job.',
+};
+```
+
+## 7. Performance Considerations
+
+### 7.1 Optimization Strategies
+
+**Pagination:**
+- Candidate list: 20 items per page
+- Activity log: 50 items per page
+- Lazy load on scroll for better UX
+
+**Polling:**
+- Activity log auto-refresh: 30 seconds (configurable)
+- Dashboard summary: 30 seconds when automation active
+- Use visibility API to pause polling when tab inactive
+
+**Caching:**
+- Cache job list for 5 minutes
+- Cache analytics data for 2 minutes
+- Invalidate cache on user actions
+
+**Code Splitting:**
+```javascript
+// Lazy load dashboard components
+const Dashboard = lazy(() => import('./components/Dashboard/Dashboard'));
+const InterviewAccept = lazy(() => import('./components/Interview/InterviewAccept'));
+```
+
+### 7.2 Loading States
+
+**Skeleton Screens:**
+- Use skeleton loaders for candidate list
+- Show loading spinners for actions (buttons)
+- Display progress indicators for multi-step flows
+
+## 8. Testing Strategy
+
+### 8.1 Component Testing
+
+**Tools:** Jest + React Testing Library
+
+**Test Coverage:**
+- Unit tests for all new components
+- Integration tests for API service functions
+- Mock API responses for predictable testing
+
+**Example Test:**
+```javascript
+// ShortlistSummary.test.jsx
+describe('ShortlistSummary', () => {
+  it('displays shortlist counts correctly', () => {
+    const summary = {
+      shortlisted: 5,
+      target: 10,
+      buffer: 15,
+      bufferTarget: 20
+    };
+    
+    render(<ShortlistSummary jobId="123" summary={summary} />);
+    
+    expect(screen.getByText('5 / 10')).toBeInTheDocument();
+    expect(screen.getByText('15 / 20')).toBeInTheDocument();
+  });
+  
+  it('shows start automation button when conditions met', () => {
+    const summary = {
+      applicationsClosed: true,
+      automationStarted: false
+    };
+    
+    render(<ShortlistSummary jobId="123" summary={summary} />);
+    
+    expect(screen.getByText('Start Automation')).toBeInTheDocument();
+  });
+});
+```
+
+### 8.2 E2E Testing (Optional for MVP)
+
+**Tools:** Cypress or Playwright
+
+**Critical Flows:**
+1. Recruiter posts job → views dashboard → starts automation
+2. Candidate applies → receives interview → accepts → selects slot
+3. Recruiter monitors activity log and analytics
+
+## 9. Deployment Considerations
+
+### 9.1 Environment Variables
+
+```bash
+# .env.production
+REACT_APP_API_URL=https://api.production.com
+REACT_APP_ENV=production
+```
+
+### 9.2 Build Configuration
+
+```javascript
+// package.json
+{
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  }
+}
+```
+
+### 9.3 Browser Support
+
+- Chrome (latest 2 versions)
+- Firefox (latest 2 versions)
+- Safari (latest 2 versions)
+- Edge (latest 2 versions)
+
+## 10. MVP Scope Summary
+
+### 10.1 In Scope
+
+✅ Enhanced job posting with number_of_openings
+✅ Recruiter dashboard with job selector
+✅ Shortlist summary with automation controls
+✅ Candidate list with filtering and sorting
+✅ Activity log with auto-refresh
+✅ Basic analytics display
+✅ Interview acceptance/rejection flow
+✅ Slot selection interface
+✅ Basic negotiation chat
+✅ Enhanced application tracking
+
+### 10.2 Out of Scope (Future Enhancements)
+
+❌ Real-time WebSocket updates
+❌ Advanced analytics charts (complex visualizations)
+❌ Bulk candidate actions
+❌ Mobile-optimized responsive design
+❌ Multi-language support
+❌ Advanced filtering (date ranges, custom filters)
+❌ Export to PDF/Excel
+❌ Email template customization
+❌ Calendar integration UI
+❌ Video interview integration
+
+## 11. Implementation Priority
+
+### Phase 1 (Critical Path)
+1. Enhanced PostJob component
+2. Dashboard layout and JobSelector
+3. ShortlistSummary with automation controls
+4. Basic CandidateList
+
+### Phase 2 (Core Features)
+5. InterviewAccept/Reject components
+6. SlotSelection component
+7. Enhanced MyApplications
+8. ActivityLog component
+
+### Phase 3 (Polish)
+9. Analytics component
+10. NegotiationChat component
+11. Shared components (StatusBadge, etc.)
+12. Error handling and loading states
+
+---
+
+**Design Document Status:** ✅ COMPLETE
+
+**Next Step:** Create tasks.md with implementation tasks
