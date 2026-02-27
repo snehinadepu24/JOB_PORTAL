@@ -18,6 +18,7 @@ import {
   getPerformanceMetrics,
   getErrorMetrics,
   getAutomationMetrics,
+  getMetricsDashboard,
 } from '../controllers/metricsController.js';
 import { isAuthenticated } from '../middlewares/auth.js';
 
@@ -59,5 +60,14 @@ router.get('/errors', isAuthenticated, getErrorMetrics);
  * - window: Time window in minutes (default: 60)
  */
 router.get('/automation', isAuthenticated, getAutomationMetrics);
+
+/**
+ * GET /api/v1/metrics/dashboard
+ * 
+ * Get comprehensive metrics dashboard with all system metrics
+ * Query params:
+ * - window: Time window in minutes (default: 60)
+ */
+router.get('/dashboard', isAuthenticated, getMetricsDashboard);
 
 export default router;

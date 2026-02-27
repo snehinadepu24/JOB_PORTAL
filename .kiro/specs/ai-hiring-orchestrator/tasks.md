@@ -359,13 +359,13 @@ This implementation plan transforms the existing job portal into a fully automat
     - Implement log querying utilities
     - _Requirements: 8.7, Observability section_
   
-  - [-] 15.3 Implement metrics collection
+  - [x] 15.3 Implement metrics collection
     - Track system health metrics
     - Implement alert threshold checking
     - Create metrics dashboard endpoint
     - _Requirements: 15.10, Observability section_
   
-  - [ ] 15.4 Write unit tests for feature flag control
+  - [x] 15.4 Write unit tests for feature flag control
     - Test global flag enforcement
     - Test job-level flag overrides
     - Test automation bypass when disabled

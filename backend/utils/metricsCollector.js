@@ -160,7 +160,7 @@ class MetricsCollector {
       .map(m => m.duration)
       .sort((a, b) => a - b);
 
-    const index = Math.ceil(sortedDurations.length * 0.95) - 1;
+    const index = Math.floor(sortedDurations.length * 0.95);
     return sortedDurations[index] || 0;
   }
 

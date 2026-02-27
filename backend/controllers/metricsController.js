@@ -147,3 +147,49 @@ export const getAutomationMetrics = catchAsyncError(async (req, res, next) => {
     },
   });
 });
+
+/**
+ * Get comprehensive metrics dashboard
+ * 
+ * GET /api/v1/metrics/dashboard?window=60
+ * 
+ * Query params:
+ * - window: Time window in minutes (default: 60)
+ * 
+ * Returns comprehensive dashboard with:
+ * - systemHealth: Overall health status and alerts
+ * - performance: Response time statistics
+ * - errors: Error rate and breakdown
+ * - automation: Automation success metrics
+ * 
+ * Requirements: 15.10, 13.10, Observability section
+ */
+export const getMetricsDashboard = catchAsyncError(async (req, res, next) => {
+  const window = parseInt(req.query.window) || 60;
+
+  // Validate window parameter
+  if (window < 1 || window > 1440) {
+    return res.status(400).json({
+      success: false,
+      error: 'Window must be between 1 and 1440 minutes',
+    });
+  }
+
+  // Gather all metrics
+  const systemHealth = metricsCollector.getSystemHealth();
+  const performance = metricsCollector.getPerformanceMetrics(window);
+  const errors = metricsCollector.getErrorMetrics(window);
+  const automation = metricsCollector.getAutomationMetrics(window);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      timestamp: Date.now(),
+      window: `${window} minutes`,
+      systemHealth,
+      performance,
+      errors,
+      automation,
+    },
+  });
+});
