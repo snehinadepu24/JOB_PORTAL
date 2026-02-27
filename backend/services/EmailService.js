@@ -233,7 +233,8 @@ class EmailService {
       slot_selection: this.slotSelectionTemplate,
       confirmation: this.confirmationTemplate,
       reminder: this.reminderTemplate,
-      promotion: this.promotionTemplate
+      promotion: this.promotionTemplate,
+      negotiation_escalation: this.negotiationEscalationTemplate
     };
 
     const template = templates[templateName];
@@ -725,6 +726,116 @@ The Hiring Team
 ---
 This is an automated message. Please do not reply to this email.
 If you have any questions, please contact the hiring team directly.
+    `;
+
+    return { subject, html, text };
+  }
+
+  /**
+   * Negotiation Escalation Email Template
+   * 
+   * Requirements: 5.5, 5.7
+   * 
+   * @param {Object} data - Template data
+   * @param {string} data.recruiter_name - Recruiter's name
+   * @param {string} data.candidate_name - Candidate's name
+   * @param {string} data.candidate_email - Candidate's email
+   * @param {string} data.job_title - Job title
+   * @param {string} data.conversation_history - Full conversation history
+   * @param {string} data.interview_id - Interview UUID
+   * @returns {Object} Email content
+   */
+  negotiationEscalationTemplate(data) {
+    const subject = `Action Required: Interview Scheduling Escalation - ${data.candidate_name}`;
+    
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #FF5722; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9f9f9; }
+    .alert-box { background-color: #fff3e0; padding: 15px; border-left: 4px solid #FF9800; margin: 20px 0; }
+    .conversation-box { background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; margin: 20px 0; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚠️ Interview Scheduling Escalation</h1>
+    </div>
+    <div class="content">
+      <p>Dear ${data.recruiter_name},</p>
+      
+      <div class="alert-box">
+        <p><strong>Action Required:</strong> The automated negotiation bot was unable to find a suitable interview time after 3 rounds of negotiation.</p>
+      </div>
+      
+      <p><strong>Candidate Details:</strong></p>
+      <ul>
+        <li>Name: <strong>${data.candidate_name}</strong></li>
+        <li>Email: <strong>${data.candidate_email}</strong></li>
+        <li>Position: <strong>${data.job_title}</strong></li>
+        <li>Interview ID: ${data.interview_id}</li>
+      </ul>
+      
+      <p><strong>Conversation History:</strong></p>
+      <div class="conversation-box">${data.conversation_history}</div>
+      
+      <p><strong>Next Steps:</strong></p>
+      <ol>
+        <li>Review the conversation history above to understand the candidate's availability constraints</li>
+        <li>Contact the candidate directly at <a href="mailto:${data.candidate_email}">${data.candidate_email}</a></li>
+        <li>Work with the candidate to find a mutually convenient time</li>
+        <li>Manually schedule the interview in the system</li>
+      </ol>
+      
+      <p>The candidate has been notified that you will reach out directly to schedule the interview.</p>
+      
+      <p>Best regards,<br>AI Hiring Orchestrator</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated escalation notification.</p>
+      <p>For technical issues, please contact the system administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const text = `
+Action Required: Interview Scheduling Escalation - ${data.candidate_name}
+
+Dear ${data.recruiter_name},
+
+⚠️ ACTION REQUIRED: The automated negotiation bot was unable to find a suitable interview time after 3 rounds of negotiation.
+
+Candidate Details:
+- Name: ${data.candidate_name}
+- Email: ${data.candidate_email}
+- Position: ${data.job_title}
+- Interview ID: ${data.interview_id}
+
+Conversation History:
+${data.conversation_history}
+
+Next Steps:
+1. Review the conversation history above to understand the candidate's availability constraints
+2. Contact the candidate directly at ${data.candidate_email}
+3. Work with the candidate to find a mutually convenient time
+4. Manually schedule the interview in the system
+
+The candidate has been notified that you will reach out directly to schedule the interview.
+
+Best regards,
+AI Hiring Orchestrator
+
+---
+This is an automated escalation notification.
+For technical issues, please contact the system administrator.
     `;
 
     return { subject, html, text };

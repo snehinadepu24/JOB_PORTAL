@@ -119,20 +119,23 @@ async function testPlaceholders() {
   
   const scheduler = new BackgroundScheduler();
   
-  // Test placeholder methods return 0
+  // Test implemented methods return 0 when no data
   const confirmationCount = await scheduler.checkConfirmationDeadlines();
-  assert(confirmationCount === 0, 'checkConfirmationDeadlines should return 0 (placeholder)');
+  assert(confirmationCount === 0, 'checkConfirmationDeadlines should return 0 when no expired interviews');
   
   const slotCount = await scheduler.checkSlotSelectionDeadlines();
-  assert(slotCount === 0, 'checkSlotSelectionDeadlines should return 0 (placeholder)');
+  assert(slotCount === 0, 'checkSlotSelectionDeadlines should return 0 when no expired slot selections');
   
+  // Test implemented buffer health checker
   const bufferCount = await scheduler.checkBufferHealth();
-  assert(bufferCount === 0, 'checkBufferHealth should return 0 (placeholder)');
+  assert(typeof bufferCount === 'number', 'checkBufferHealth should return a number');
+  assert(bufferCount >= 0, 'checkBufferHealth should return non-negative count');
   
+  // Test placeholder method
   const reminderCount = await scheduler.sendInterviewReminders();
   assert(reminderCount === 0, 'sendInterviewReminders should return 0 (placeholder)');
   
-  console.log('  ✓ All placeholder methods return 0');
+  console.log('  ✓ All methods return expected values');
 }
 
 // Run tests

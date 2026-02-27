@@ -319,6 +319,47 @@ router.post('/confirm-slot/:interviewId', async (req, res) => {
       throw new Error(`Failed to update interview status: ${updateError.message}`);
     }
 
+    // 5a. Call risk analyzer to compute no-show risk (Requirement 7.1)
+    // This is non-blocking - failure should not prevent confirmation
+    let riskScore = 0.5; // Default risk score
+    try {
+      const axios = (await import('axios')).default;
+      const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
+      
+      const riskResponse = await axios.post(`${pythonServiceUrl}/api/python/analyze-risk`, {
+        interview_id: interviewId,
+        candidate_id: interview.candidate_id
+      }, {
+        timeout: 5000 // 5 second timeout
+      });
+
+      if (riskResponse.data && typeof riskResponse.data.no_show_risk === 'number') {
+        riskScore = riskResponse.data.no_show_risk;
+        console.log(`Risk analysis complete for interview ${interviewId}: ${riskScore} (${riskResponse.data.risk_level})`);
+        
+        // Update interview with risk score
+        await supabase
+          .from('interviews')
+          .update({ no_show_risk: riskScore })
+          .eq('id', interviewId);
+      }
+    } catch (riskError) {
+      console.error('Risk analysis failed (non-blocking):', riskError.message);
+      // Log the failure but continue with confirmation
+      await supabase
+        .from('automation_logs')
+        .insert([{
+          job_id: interview.job_id,
+          action_type: 'risk_analysis_failed',
+          trigger_source: 'auto',
+          details: {
+            interview_id: interviewId,
+            error: riskError.message,
+            timestamp: new Date().toISOString()
+          }
+        }]);
+    }
+
     // 6. Create calendar event (Requirement 4.6)
     // Handle calendar failures gracefully - they should not block confirmation
     let calendarResult = { success: false, method: 'none' };

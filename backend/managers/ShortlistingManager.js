@@ -1,17 +1,19 @@
 import { supabase } from '../database/supabaseClient.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 
 /**
  * ShortlistingManager
  * 
  * Manages dynamic shortlisting, buffer pools, and auto-promotion logic.
  * 
- * Requirements: 2.3-2.6, 2.8-2.11
+ * Requirements: 2.3-2.6, 2.8-2.11, 12.8, 12.9
  * 
  * Key Responsibilities:
  * - Auto-shortlist top N candidates based on fit_score
  * - Maintain buffer pool of next-best candidates
  * - Promote buffer candidates when shortlisted candidates drop out
  * - Backfill buffer pool to maintain target size
+ * - Respect feature flags for automation control
  */
 class ShortlistingManager {
   /**
@@ -22,11 +24,23 @@ class ShortlistingManager {
    * - OR recruiter manually clicks "Start Automation" button
    * - Ranking runs once per job (idempotent)
    * 
+   * Requirements: 12.8, 12.9
+   * 
    * @param {string} jobId - UUID of the job
    * @returns {Promise<Object>} Result with shortlisted and buffer counts
    */
   async autoShortlist(jobId) {
     try {
+      // Check if auto-shortlisting is enabled
+      if (!await isFeatureEnabled('auto_shortlisting', jobId)) {
+        console.log(`[ShortlistingManager] Auto-shortlisting disabled for job ${jobId}`);
+        return {
+          success: false,
+          reason: 'Auto-shortlisting is disabled for this job',
+          message: 'Automation is disabled. Please use manual shortlisting.'
+        };
+      }
+
       // 1. Get job with number_of_openings and shortlisting_buffer
       const { data: job, error: jobError } = await supabase
         .from('jobs')
@@ -142,12 +156,23 @@ class ShortlistingManager {
    * - After interview confirmation: No auto-backfill (recruiter must manually decide)
    * - Cutoff deadline: Promotions stop 24 hours before first scheduled interview
    * 
+   * Requirements: 12.8, 12.9
+   * 
    * @param {string} jobId - UUID of the job
    * @param {number} vacatedRank - The rank position that was vacated
    * @returns {Promise<Object>} Promoted candidate or null if buffer empty
    */
   async promoteFromBuffer(jobId, vacatedRank) {
     try {
+      // Check if auto-promotion is enabled
+      if (!await isFeatureEnabled('auto_promotion', jobId)) {
+        console.log(`[ShortlistingManager] Auto-promotion disabled for job ${jobId}`);
+        return {
+          success: false,
+          reason: 'Auto-promotion is disabled for this job'
+        };
+      }
+
       // Check if promotion is allowed
       const canPromoteResult = await this.canPromote(jobId);
       if (!canPromoteResult.allowed) {

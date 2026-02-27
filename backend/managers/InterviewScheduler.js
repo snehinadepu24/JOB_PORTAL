@@ -1,6 +1,7 @@
 import { supabase } from '../database/supabaseClient.js';
 import { interviewModel } from '../models/interviewSchema.js';
 import { emailService } from '../services/EmailService.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 import jwt from 'jsonwebtoken';
 
 /**
@@ -8,7 +9,7 @@ import jwt from 'jsonwebtoken';
  * 
  * Automates interview invitation, slot selection, and confirmation workflow.
  * 
- * Requirements: 3.1, 3.2, 3.3, 3.5, 3.6, 3.9
+ * Requirements: 3.1, 3.2, 3.3, 3.5, 3.6, 3.9, 12.8, 12.9
  * 
  * Key Features:
  * - Automatic interview invitation sending
@@ -16,6 +17,7 @@ import jwt from 'jsonwebtoken';
  * - Deadline-based automation (48 hours for confirmation)
  * - Integration with email service (placeholder for now)
  * - Automation logging
+ * - Feature flag support for automation control
  */
 
 class InterviewScheduler {
@@ -27,7 +29,7 @@ class InterviewScheduler {
    * - confirmation_deadline: 48 hours from now
    * - Secure accept/reject tokens
    * 
-   * Requirements: 3.1, 3.2, 3.3
+   * Requirements: 3.1, 3.2, 3.3, 12.8, 12.9
    * 
    * @param {string} applicationId - UUID of the application
    * @returns {Promise<Object>} Created interview with tokens
@@ -54,6 +56,16 @@ class InterviewScheduler {
 
       if (jobError || !job) {
         throw new Error(`Job not found: ${jobError?.message || 'Unknown error'}`);
+      }
+
+      // Check if automation is enabled for this job
+      if (!await isFeatureEnabled('global_automation', job.id)) {
+        console.log(`[InterviewScheduler] Automation disabled for job ${job.id}`);
+        return {
+          success: false,
+          reason: 'Automation is disabled for this job',
+          message: 'Interview invitations must be sent manually for this job.'
+        };
       }
 
       // 3. Check if interview already exists for this application

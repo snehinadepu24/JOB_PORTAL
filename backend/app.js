@@ -5,6 +5,7 @@ import userRouter from "./routes/userRoutes.js";
 import applicationRouter from "./routes/applicationRoutes.js";
 import calendarRouter from "./routes/calendarRoutes.js";
 import interviewRouter from "./routes/interviewRoutes.js";
+import dashboardRouter from "./routes/dashboardRoutes.js";
 import { config } from "dotenv";
 import cors from "cors";
 import { errorMiddleware } from "./middlewares/error.js";
@@ -51,6 +52,7 @@ app.use("/api/v1/job", jobRouter);
 app.use("/api/v1/application", applicationRouter);
 app.use("/api/v1/calendar", calendarRouter);
 app.use("/api/v1/interview", interviewRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 
 // Error middleware
 app.use(errorMiddleware);

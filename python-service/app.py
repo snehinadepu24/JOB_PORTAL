@@ -8,6 +8,7 @@ import os
 import logging
 
 from resume_ranker import EnhancedResumeRanker
+from no_show_risk_analyzer import NoShowRiskAnalyzer
 
 # Load environment variables
 load_dotenv()
@@ -20,8 +21,9 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize resume ranker
+# Initialize resume ranker and risk analyzer
 ranker = EnhancedResumeRanker()
+risk_analyzer = NoShowRiskAnalyzer()
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -78,6 +80,65 @@ def process_resume():
         
     except Exception as e:
         logger.error(f"Error processing resume: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/python/analyze-risk', methods=['POST'])
+def analyze_risk():
+    """
+    Analyze no-show risk for a candidate's interview.
+    
+    Request body:
+    {
+        "interview_id": "uuid",
+        "candidate_id": "uuid"
+    }
+    
+    Response:
+    {
+        "no_show_risk": 0.35,
+        "risk_level": "medium",
+        "factors": {
+            "response_time_hours": 12,
+            "negotiation_rounds": 1,
+            "profile_completeness": 0.9,
+            "historical_reliability": 0.8
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data or 'interview_id' not in data or 'candidate_id' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: interview_id, candidate_id'
+            }), 400
+        
+        interview_id = data['interview_id']
+        candidate_id = data['candidate_id']
+        
+        logger.info(f"Analyzing risk for interview {interview_id}, candidate {candidate_id}")
+        
+        # Analyze the risk
+        result = risk_analyzer.analyze_risk(interview_id, candidate_id)
+        
+        logger.info(f"Risk analysis complete for interview {interview_id}: risk={result['no_show_risk']}, level={result['risk_level']}")
+        
+        return jsonify(result), 200
+        
+    except ValueError as e:
+        logger.error(f"Validation error in risk analysis: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 404
+        
+    except Exception as e:
+        logger.error(f"Error analyzing risk: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
