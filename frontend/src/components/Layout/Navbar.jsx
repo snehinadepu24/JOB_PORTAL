@@ -59,6 +59,11 @@ const Navbar = () => {
                 </Link>
               </li>
               <li>
+                <Link to={"/dashboard"} onClick={() => setShow(false)}>
+                  DASHBOARD
+                </Link>
+              </li>
+              <li>
                 <Link to={"/job/me"} onClick={() => setShow(false)}>
                   VIEW YOUR JOBS
                 </Link>
