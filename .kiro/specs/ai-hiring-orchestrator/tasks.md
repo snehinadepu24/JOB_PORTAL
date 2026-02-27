@@ -278,7 +278,7 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 26: High Risk Flagging**
     - **Validates: Requirements 7.4, 7.5**
 
-- [ ] 13. Negotiation Bot Implementation
+- [x] 13. Negotiation Bot Implementation
   - [x] 13.1 Create NegotiationBot class with session management
     - Implement `startNegotiation(interviewId, candidateMessage)` method
     - Implement `processMessage(session, message)` method
@@ -311,7 +311,7 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 22: Negotiation Round Limit**
     - **Validates: Requirements 5.6, 5.7**
 
-- [ ] 14. Recruiter Dashboard and Analytics
+- [x] 14. Recruiter Dashboard and Analytics
   - [x] 14.1 Create dashboard API endpoints
     - Create endpoint to get ranked candidates for job
     - Create endpoint to get automation activity log
@@ -346,7 +346,7 @@ This implementation plan transforms the existing job portal into a fully automat
     - **Property 40: Buffer Health Indicator**
     - **Validates: Requirements 9.9**
 
-- [ ] 15. Feature Flags and Observability
+- [x] 15. Feature Flags and Observability
   - [x] 15.1 Implement feature flag system
     - Create feature_flags table operations
     - Implement `isFeatureEnabled(flagName, jobId)` function
@@ -371,34 +371,34 @@ This implementation plan transforms the existing job portal into a fully automat
     - Test automation bypass when disabled
     - _Requirements: 12.8, 12.9_
 
-- [ ] 16. Security and Validation
-  - [ ] 16.1 Implement token validation
+- [x] 16. Security and Validation
+  - [x] 16.1 Implement token validation
     - Create secure token generation for interview actions
     - Implement token expiration (7 days)
     - Validate tokens on accept/reject endpoints
     - _Requirements: 14.3, 14.4_
   
-  - [ ] 16.2 Implement input validation and sanitization
+  - [x] 16.2 Implement input validation and sanitization
     - Add validation middleware for all API endpoints
     - Sanitize user inputs to prevent SQL injection and XSS
     - Return descriptive error messages for invalid inputs
     - _Requirements: 13.8, 14.7_
   
-  - [ ] 16.3 Implement rate limiting
+  - [x] 16.3 Implement rate limiting
     - Add rate limiting middleware (100 requests/minute per user)
     - Return appropriate error responses when limit exceeded
     - _Requirements: 13.9_
   
-  - [ ] 16.4 Write property test for token validation
+  - [x] 16.4 Write property test for token validation
     - **Property 48: Token Validation**
     - **Validates: Requirements 14.4**
   
-  - [ ] 16.5 Write property test for input sanitization
+  - [x] 16.5 Write property test for input sanitization
     - **Property 50: Input Sanitization**
     - **Validates: Requirements 14.7**
 
-- [ ] 17. Backward Compatibility and Migration
-  - [ ] 17.1 Implement manual override functionality
+- [-] 17. Backward Compatibility and Migration
+  - [-] 17.1 Implement manual override functionality
     - Preserve existing manual accept/reject endpoints
     - Add bypass logic for manually accepted candidates
     - Update shortlist_status correctly for manual actions

@@ -304,7 +304,7 @@ export const updateApplicationStatus = catchAsyncErrors(async (req, res, next) =
   }
 
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, reason } = req.body;
 
   // Only allow accepted or rejected status updates
   if (!["accepted", "rejected"].includes(status)) {
@@ -327,14 +327,19 @@ export const updateApplicationStatus = catchAsyncErrors(async (req, res, next) =
     return next(new ErrorHandler("Unauthorized to update this application", 403));
   }
 
-  // Update status
-  const { error: updateError } = await supabase
-    .from('applications')
-    .update({ status })
-    .eq('id', id);
+  // Use manual override utility for backward compatibility
+  // This ensures automation is bypassed for manually processed applications
+  const manualOverride = require('../utils/manualOverride');
+  
+  let result;
+  if (status === 'accepted') {
+    result = await manualOverride.manualAccept(id, req.user.id);
+  } else if (status === 'rejected') {
+    result = await manualOverride.manualReject(id, req.user.id, reason);
+  }
 
-  if (updateError) {
-    return next(new ErrorHandler(updateError.message, 500));
+  if (!result.success) {
+    return next(new ErrorHandler(result.error, 500));
   }
 
   res.status(200).json({

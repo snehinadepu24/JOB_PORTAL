@@ -30,3 +30,6 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Invalid or Expired Token", 401));
   }
 });
+
+// Alias for compatibility
+export const isAuthenticatedUser = isAuthenticated;

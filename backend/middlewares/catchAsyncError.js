@@ -3,3 +3,9 @@ export const catchAsyncErrors = (theFunction) => {
     Promise.resolve(theFunction(req, res, next)).catch(next);
   };
 };
+
+// Alias for compatibility
+export const catchAsyncError = catchAsyncErrors;
+
+// Default export for compatibility
+export default catchAsyncErrors;
